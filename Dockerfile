@@ -15,4 +15,4 @@ COPY backend/ backend/
 COPY --from=build /app/frontend/dist/ frontend/dist/
 COPY --from=build /app/contracts/artifacts/ contracts/artifacts/
 USER node
-CMD ["node", "backend/server.js"]
+CMD ["sh", "-c", "node backend/railway-registry.js && node backend/server.js"]
