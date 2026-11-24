@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
-export async function samplePdf(qualification = 'B.Sc. Telecommunication Science') {
+export async function samplePdf(qualification = 'B.Sc. Telecommunication Science', holder = 'Sample Graduate') {
   const doc = await PDFDocument.create();
   const page = doc.addPage([720, 480]);
   const serif = await doc.embedFont(StandardFonts.TimesRomanBold);
@@ -10,7 +10,7 @@ export async function samplePdf(qualification = 'B.Sc. Telecommunication Science
   page.drawText('DEMONSTRATION ONLY', { x: 64, y: 390, size: 18, font: sans });
   page.drawText('Academic Certificate', { x: 64, y: 310, size: 40, font: serif });
   page.drawText('Certificate ID: TCS-DEMO-001', { x: 64, y: 255, size: 18, font: sans });
-  page.drawText('Sample Graduate', { x: 64, y: 202, size: 27, font: serif });
+  page.drawText(holder, { x: 64, y: 202, size: 27, font: serif });
   page.drawText(qualification, { x: 64, y: 151, size: 20, font: sans });
   page.drawText('Fictional record for software testing and project defence.', { x: 64, y: 75, size: 14, font: sans });
   return doc.save();
