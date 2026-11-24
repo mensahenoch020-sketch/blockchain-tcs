@@ -2,9 +2,19 @@ import 'dotenv/config';
 import { readFileSync } from 'node:fs';
 import { Contract, FetchRequest, JsonRpcProvider, Wallet, id, getAddress, ZeroAddress } from 'ethers';
 
-const chainId = Number(process.env.CHAIN_ID || 31337);
-const deployment = JSON.parse(process.env.REGISTRY_DEPLOYMENT_JSON ||
-  readFileSync(new URL(`../contracts/deployments/${chainId}.json`, import.meta.url), 'utf8'));
+const managedSepolia = process.env.AUTO_DEPLOY_SEPOLIA === 'true';
+const chainId = Number(process.env.CHAIN_ID || (managedSepolia ? 11155111 : 31337));
+let deployment;
+if (process.env.REGISTRY_DEPLOYMENT_JSON) {
+  deployment = JSON.parse(process.env.REGISTRY_DEPLOYMENT_JSON);
+} else if (managedSepolia) {
+  const { db } = await import('./db.js');
+  const result = await db.query('SELECT metadata FROM network_deployments WHERE chain_id=$1', [chainId]);
+  deployment = result.rows[0]?.metadata;
+  if (!deployment) throw new Error('Run the Railway registry deployment before starting the service.');
+} else {
+  deployment = JSON.parse(readFileSync(new URL(`../contracts/deployments/${chainId}.json`, import.meta.url), 'utf8'));
+}
 const { abi } = JSON.parse(readFileSync(new URL('../contracts/artifacts/contracts/CertificateRegistry.sol/CertificateRegistry.json', import.meta.url)));
 const rpc = new FetchRequest(process.env.RPC_URL || 'http://127.0.0.1:8545');
 rpc.timeout = 5000;
