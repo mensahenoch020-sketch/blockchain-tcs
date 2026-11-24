@@ -7,7 +7,7 @@ describe('CertificateRegistry', function () {
   let admin, issuer, stranger, registry;
   beforeEach(async function () {
     [admin, issuer, stranger] = await ethers.getSigners();
-    registry = await ethers.deployContract('CertificateRegistry');
+    registry = await ethers.deployContract('CertificateRegistry', [ethers.id('test-deployment')]);
   });
 
   it('registers and retrieves a timestamped record for an approved issuer', async function () {

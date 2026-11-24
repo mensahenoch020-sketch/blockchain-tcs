@@ -10,6 +10,7 @@ contract CertificateRegistry {
     }
 
     address public immutable administrator = msg.sender;
+    bytes32 public immutable deploymentId;
     mapping(address => bool) public approved;
     mapping(bytes32 => Certificate) public certificates;
 
@@ -19,6 +20,10 @@ contract CertificateRegistry {
     event IssuerApproval(address indexed issuer, bool enabled);
     event Registered(bytes32 indexed id, address indexed issuer, bytes32 digest);
     event Revoked(bytes32 indexed id, address indexed actor);
+
+    constructor(bytes32 deploymentId_) {
+        deploymentId = deploymentId_;
+    }
 
     function setIssuer(address issuer, bool enabled) external {
         if (msg.sender != administrator) revert Forbidden();
