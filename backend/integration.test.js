@@ -16,13 +16,18 @@ assert.ok(process.env.TEST_DATABASE_URL, 'Set TEST_DATABASE_URL to a dedicated d
 assert.notEqual(process.env.TEST_DATABASE_URL, process.env.DATABASE_URL);
 const actualRpc = process.env.RPC_URL;
 let rpcOffline = false;
+let denyLogSearch = false;
 const proxy = createServer(async (req, res) => {
   if (rpcOffline) return res.writeHead(500).end('Offline for integration test');
   const parts = [];
   for await (const chunk of req) parts.push(chunk);
+  const body = Buffer.concat(parts);
+  if (denyLogSearch && body.includes('"eth_getLogs"')) {
+    return res.writeHead(500).end('Historical log search disabled for this test');
+  }
   try {
     const upstream = await fetch(actualRpc, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: Buffer.concat(parts) });
+      body });
     res.writeHead(upstream.status, { 'Content-Type': 'application/json' }).end(await upstream.text());
   } catch { res.writeHead(502).end(); }
 });
@@ -164,8 +169,13 @@ test('Real Express, PostgreSQL and Hardhat workflow', async t => {
     } finally {
       await rpcClient.send('evm_setAutomine', [true]);
     }
-    const result = await api('/certificates/' + pendingId + '/synchronize', 'POST', null, issuerCookie);
-    assert.equal(result.data.state, 'confirmed');
+    denyLogSearch = true;
+    try {
+      const result = await api('/certificates/' + pendingId + '/synchronize', 'POST', null, issuerCookie);
+      assert.equal(result.data.state, 'confirmed');
+    } finally {
+      denyLogSearch = false;
+    }
   });
 
   await t.test('RPC outage returns Unable to Verify and stops new registration', async () => {

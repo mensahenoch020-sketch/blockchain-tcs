@@ -90,7 +90,20 @@ export async function wait(tx) {
   return receipt;
 }
 export async function receipt(hash) { return provider.getTransactionReceipt(hash); }
-export async function registrationHash(id, from, to) {
+export async function registrationHash(id, from, to, knownHash, issuer, digest) {
+  if (knownHash) {
+    const mined = await receipt(knownHash);
+    if (mined?.status === 1 && mined.blockNumber >= from && mined.blockNumber <= to) {
+      const event = registry.interface.getEvent('Registered');
+      const matches = mined.logs.some(log => {
+        if (log.address.toLowerCase() !== registry.target.toLowerCase() ||
+            log.topics[0] !== event.topicHash || log.topics[1] !== keyFor(id)) return false;
+        const args = registry.interface.decodeEventLog(event, log.data, log.topics);
+        return args[1].toLowerCase() === issuer && args[2] === digest;
+      });
+      if (matches) return mined.hash;
+    }
+  }
   for (let block = from; block <= to; block += 2000) {
     const logs = await registry.queryFilter(registry.filters.Registered(keyFor(id)), block, Math.min(to, block + 1999));
     if (logs.length) return logs[0].transactionHash;

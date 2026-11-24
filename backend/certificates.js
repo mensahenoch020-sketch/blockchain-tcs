@@ -71,7 +71,7 @@ export async function synchronize(client, row, actor, { submit = false } = {}) {
           [chain.registryKey, id]);
         throw new HttpError(409, 'That ID is already registered with different certificate evidence.');
       }
-      txHash = await chain.onChain(() => chain.registrationHash(id, startBlock, block));
+      txHash = await chain.onChain(() => chain.registrationHash(id, startBlock, block, txHash, wallet, digest));
     } else if (txHash) {
       const receipt = await chain.onChain(() => chain.receipt(txHash));
       if (!receipt || receipt.blockNumber > block) return { id, state: 'pending', transaction: txHash };
