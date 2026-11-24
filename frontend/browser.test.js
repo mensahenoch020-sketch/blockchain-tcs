@@ -94,7 +94,15 @@ test('Built application supports staff issuance and anonymous mobile verificatio
   await desktop.getByLabel('Certificate holder').fill('Sample Graduate');
   await desktop.getByLabel('Qualification').fill('Telecommunication Science');
   await desktop.locator('input[type=file]').setInputFiles(file(original));
+  await desktop.route('**/api/certificates', async route => {
+    const response = await route.fetch();
+    assert.equal(response.status(), 201);
+    const confirmed = await response.json();
+    // Present the response Sepolia sends after broadcast and exercise real reconciliation.
+    await route.fulfill({ response, status: 202, json: { ...confirmed, state: 'pending' } });
+  }, { times: 1 });
   await desktop.getByRole('button', { name: 'Register on Ethereum' }).click();
+  await expectText(desktop, 'Registration pending');
   await expectText(desktop, 'Registration confirmed');
   await desktop.getByRole('link', { name: 'View record and QR code' }).click();
   await desktop.getByRole('button', { name: 'QR code' }).first().click();

@@ -225,7 +225,9 @@ export function createApp() {
     const result = await serialized(async client => {
       await writableAccount(req, client);
       const row = await certificateFor(client, id, req.user);
-      return synchronize(client, row, req.user.id, { submit: req.user.role === 'issuer' });
+      return synchronize(client, row, req.user.id, {
+        submit: req.user.role === 'issuer' && req.query.check !== '1'
+      });
     });
     res.status(result.state === 'pending' ? 202 : 200).json(result);
   });

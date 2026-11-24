@@ -89,6 +89,9 @@ export async function synchronize(client, row, actor, { submit = false } = {}) {
       txHash = tx.hash;
       await client.query('UPDATE certificates SET tx_hash=$3 WHERE registry=$1 AND id=$2',
         [chain.registryKey, id, txHash]);
+      if (chain.networkInfo.chainId === 11155111) {
+        return { id, state: 'pending', transaction: txHash, chainId: chain.networkInfo.chainId };
+      }
       await chain.onChain(() => chain.wait(tx));
     } else {
       return { id, state: row.state, transaction: null };

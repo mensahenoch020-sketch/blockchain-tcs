@@ -89,9 +89,52 @@ function Overview({ user }) {
   </>;
 }
 
+async function syncRegistration(id, signal) {
+  return request('/certificates/' + encodeURIComponent(id) + '/synchronize?check=1', {
+    method: 'POST', signal
+  });
+}
+
+function usePendingSync(ids, onSettled) {
+  const queue = ids.join(',');
+  useEffect(() => {
+    if (!queue) return;
+    const controller = new AbortController();
+    const pending = queue.split(',');
+    const deadline = Date.now() + 5 * 60_000;
+    let timer;
+
+    async function poll() {
+      try {
+        if (document.visibilityState === 'visible') {
+          const id = pending.shift();
+          const result = await syncRegistration(id, controller.signal).catch(error => {
+            if ([401, 403].includes(error.status)) controller.abort();
+            return null;
+          });
+          if (controller.signal.aborted) return;
+          if (result && result.state !== 'pending') onSettled(result);
+          else pending.push(id);
+        }
+      } finally {
+        if (!controller.signal.aborted && pending.length && Date.now() < deadline) {
+          timer = setTimeout(poll, 5000);
+        }
+      }
+    }
+
+    timer = setTimeout(poll, 5000);
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [queue, onSettled]);
+}
+
 function Issue() {
   const [record, setRecord] = useState(null);
   const action = useAction(setRecord);
+  usePendingSync(record?.state === 'pending' && record.transaction ? [record.id] : [], setRecord);
   async function submit(event) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -104,12 +147,13 @@ function Issue() {
       <label>Certificate holder<input name="holder" required minLength={2} maxLength={160}/></label>
       <label>Qualification<input name="qualification" required minLength={2} maxLength={160}/></label>
       <FileInput required/><button className="button" disabled={action.busy}>
-        <Plus size={19}/>{action.busy ? 'Submitting and checking confirmation…' : 'Register on Ethereum'}</button>
+        <Plus size={19}/>{action.busy ? 'Submitting to Ethereum…' : 'Register on Ethereum'}</button>
       <ActionFeedback action={action}/>
     </form>
     {record && <section className="panel issue-result" aria-live="polite"><h2>{record.state === 'confirmed' ? 'Registration confirmed' : 'Registration ' + record.state}</h2>
       <p>Certificate ID <strong>{record.id}</strong></p>
       {record.transaction && <p>Transaction <TxLink hash={record.transaction} chainId={record.chainId}/></p>}
+      {record.state === 'pending' && record.transaction && <p>Sent to Ethereum. This page checks for confirmation automatically.</p>}
       <Link to="/workspace/records">{record.state === 'confirmed' ? 'View record and QR code' : 'Open records to synchronize'}</Link>
     </section>}
   </>;
@@ -122,6 +166,9 @@ function Records({ user }) {
   const [revoking, setRevoking] = useState(null);
   const records = useData('/certificates?page=' + page, refresh);
   const action = useAction(() => { setRefresh(value => value + 1); setRevoking(null); });
+  const refreshSettled = React.useCallback(() => setRefresh(value => value + 1), []);
+  usePendingSync(records.data?.items.filter(row => row.state === 'pending' && row.tx_hash)
+    .map(row => row.id) || [], refreshSettled);
   return <>
     <PageTitle title="Certificate records" subtitle="Review registration transactions, verification links and revocation status."
       action={<button className="secondary" onClick={() => setRefresh(value => value + 1)}><RefreshCcw size={17}/> Refresh</button>}/>
