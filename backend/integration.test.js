@@ -6,6 +6,8 @@ import { once } from 'node:events';
 import { createServer } from 'node:http';
 import { test } from 'node:test';
 import { JsonRpcProvider } from 'ethers';
+import jsQR from 'jsqr';
+import { PNG } from 'pngjs';
 import { samplePdf } from '../fixtures/generate.js';
 
 assert.equal(process.env.CHAIN_ID, '31337', 'Integration tests require a disposable local Hardhat deployment.');
@@ -36,7 +38,7 @@ process.env.RPC_URL = rpc;
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
 process.env.ADMIN_EMAIL = 'test-' + randomUUID() + '@example.test';
 process.env.ADMIN_PASSWORD = randomBytes(18).toString('hex');
-delete process.env.DEMO_ISSUER_PASSWORD;
+process.env.DEMO_ISSUER_PASSWORD = '';
 const bootstrap = spawn(process.execPath, ['backend/setup.js'], { stdio: 'inherit' });
 assert.equal((await once(bootstrap, 'close'))[0], 0);
 const { createApp } = await import('./app.js');
@@ -133,7 +135,9 @@ test('Real Express, PostgreSQL and Hardhat workflow', async t => {
     assert.equal((await api('/certificates', 'POST', upload(id, original), issuerCookie)).status, 409);
     const qr = await api('/certificates/' + id + '/qr', 'GET', null, issuerCookie);
     assert.equal(qr.headers.get('content-type'), 'image/png');
-    assert.equal(qr.data.subarray(1,4).toString(), 'PNG');
+    const image = PNG.sync.read(qr.data);
+    const decoded = jsQR(new Uint8ClampedArray(image.data), image.width, image.height);
+    assert.equal(decoded?.data, origin + '/verify/' + id);
     const lookup = await check(id);
     assert.equal(lookup.data.status, 'registered');
     assert.equal(lookup.data.transaction, transaction);
