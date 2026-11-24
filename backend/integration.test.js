@@ -169,8 +169,10 @@ test('Real Express, PostgreSQL and Hardhat workflow', async t => {
   });
 
   await t.test('RPC outage returns Unable to Verify and stops new registration', async () => {
+    assert.equal((await fetch(base + '/health')).status, 200);
     rpcOffline = true;
     try {
+      assert.equal((await fetch(base + '/health')).status, 503);
       const result = await check(id);
       assert.equal(result.status, 503);
       assert.equal(result.data.status, 'unavailable');

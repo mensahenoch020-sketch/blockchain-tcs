@@ -48,6 +48,15 @@ export function createApp() {
   app.disable('x-powered-by');
   app.use(helmet({ contentSecurityPolicy: { directives: { imgSrc: ["'self'", 'data:'],
     upgradeInsecureRequests: cookieOptions.secure ? [] : null } } }));
+  app.get('/health', async (_, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+      await Promise.all([db.query('SELECT 1 FROM users LIMIT 1'), chain.confirmedBlock()]);
+      res.json({ status: 'ready' });
+    } catch {
+      res.status(503).json({ status: 'unavailable' });
+    }
+  });
   app.use('/api', (req, res, next) => {
     res.set('Cache-Control', 'no-store');
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.headers.origin !== appOrigin) {

@@ -64,5 +64,6 @@ Node.js 24 was used for local verification. `package-lock.json` pins the package
 - [API reference](docs/api.md)
 - [Smart contract](docs/contract.md)
 - [Ethereum Sepolia setup](docs/sepolia.md)
+- [Railway hosting](docs/railway.md)
 - [Test procedures and results](docs/testing.md)
 - [Project defence guide](docs/defence.md)

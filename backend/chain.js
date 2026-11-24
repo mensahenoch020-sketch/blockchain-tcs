@@ -3,13 +3,18 @@ import { readFileSync } from 'node:fs';
 import { Contract, FetchRequest, JsonRpcProvider, Wallet, id, getAddress, ZeroAddress } from 'ethers';
 
 const chainId = Number(process.env.CHAIN_ID || 31337);
-const deployment = JSON.parse(readFileSync(new URL(`../contracts/deployments/${chainId}.json`, import.meta.url)));
+const deployment = JSON.parse(process.env.REGISTRY_DEPLOYMENT_JSON ||
+  readFileSync(new URL(`../contracts/deployments/${chainId}.json`, import.meta.url), 'utf8'));
 const { abi } = JSON.parse(readFileSync(new URL('../contracts/artifacts/contracts/CertificateRegistry.sol/CertificateRegistry.json', import.meta.url)));
 const rpc = new FetchRequest(process.env.RPC_URL || 'http://127.0.0.1:8545');
 rpc.timeout = 5000;
 const provider = new JsonRpcProvider(rpc, chainId, { cacheTimeout: -1 });
 const confirmations = Number(process.env.CONFIRMATIONS || (chainId === 31337 ? 1 : 2));
 if (![31337,11155111].includes(chainId) || deployment.chainId !== chainId ||
+    !/^0x[0-9a-fA-F]{40}$/.test(deployment.address) ||
+    !Number.isSafeInteger(deployment.block) || deployment.block < 1 ||
+    !/^0x[0-9a-fA-F]{64}$/.test(deployment.transaction) ||
+    !/^0x[0-9a-fA-F]{64}$/.test(deployment.deploymentId) ||
     !Number.isInteger(confirmations) || confirmations < 1) throw new Error('Invalid blockchain configuration.');
 
 const registry = new Contract(deployment.address, abi, provider);
